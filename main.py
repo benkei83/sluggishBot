@@ -12,7 +12,7 @@ load_dotenv()
 TOKEN = os.getenv('TOKEN')
 
 # Discord settings
-client = discord.Client()
+# client = discord.Client()
 bot = commands.Bot(command_prefix='!')
 
 # Overwatch settings
@@ -36,243 +36,231 @@ def get_quote():
     return(quote)
 
 
-@client.event
+async def scrape_stats(ctx, stat, author, msg):
+    if str(author) in profiler:
+        profile = profiler[str(author)]
+        res = requests.get(profile)
+        res.raise_for_status()
+
+        soup = bs4.BeautifulSoup(res.text, features='lxml')
+        soup2 = soup.find("h5", text=stat).parent.parent.parent.parent
+        best = soup2.find_all("tr", attrs={"class": "DataTable-tableRow"})
+        # msg = (
+        #     f'__**Best stats for {str(author).split("#")[0]}**__')
+        for i in best:
+            cols = i.select('td')
+            title, value = cols[0].text, cols[1].text
+            msg = msg + (f'\n{title}: **{value}**')
+        await ctx.send(msg)
+    else:
+        await ctx.send("Du har ikke registrert profil-URL.")
+
+
+@bot.event
 async def on_ready():
-    print("We have logged in as {0.user}".format(client))
+    print("We have logged in as {0.user}".format(bot))
 
 
 # Bot commands
 
-@bot.command(name='99', help='Responds with a random quote from Brooklyn 99')
-async def nine_nine(ctx):
-    brooklyn_99_quotes = [
-        'I\'m the human form of the 💯 emoji.',
-        'Bingpot!',
-        (
-            'Cool. Cool cool cool cool cool cool cool, '
-            'no doubt no doubt no doubt no doubt.'
-        ),
-    ]
-
-    response = random.choice(brooklyn_99_quotes)
-    await ctx.send(response)
+@bot.command(
+    name="cloud",
+    help="Lager ordsky"
+)
+async def ordsky(ctx):
+    text = ''
+    async for msg in ctx.history():
+        text = text + msg.content + " "
+    wordcloud = WordCloud(width=800, height=400,
+                          stopwords=stopwords).generate(text)
+    wordcloud.to_file("cloud.png")
+    await ctx.send(file=discord.File('cloud.png'))
 
 
 @bot.command(
-    name="yup",
-    help="yuppetidu"
+    name='quote',
+    help='Skriver ut en random quote'
 )
-async def yupfunc(ctx):
-    await ctx.send("Test")
+async def print_quote(ctx):
+    quote = get_quote()
+    await ctx.send(quote)
 
 
-@client.event
+@bot.command(
+    name='best',
+    help='Viser beste stats for spiller. !best <nick#ID> (optional)'
+)
+async def best_stat(ctx, *arg):
+    if len(arg) > 0:
+        author = str(arg[0])
+    else:
+        author = ctx.author
+    stat = 'Best'
+    msg = (f'__**Best stats for {str(author).split("#")[0]}**__')
+    await scrape_stats(ctx, stat, author, msg)
+
+
+@bot.command(
+    name='average',
+    help='Viser gjennomsnitt-stats for spiller. !average <nick#ID> (optional)'
+)
+async def average_stat(ctx, *arg):
+    if len(arg) > 0:
+        author = str(arg[0])
+    else:
+        author = ctx.author
+    stat = 'Average'
+    msg = (f'__**Average stats for {str(author).split("#")[0]}**__')
+    await scrape_stats(ctx, stat, author, msg)
+
+
+@bot.command(
+    name='combat',
+    help='Viser combat-stats for spiller. !combat <nick#ID> (optional)'
+)
+async def combat_stat(ctx, *arg):
+    if len(arg) > 0:
+        author = str(arg[0])
+    else:
+        author = ctx.author
+    stat = 'Combat'
+    msg = (f'__**Combat stats for {str(author).split("#")[0]}**__')
+    await scrape_stats(ctx, stat, author, msg)
+
+
+@bot.command(
+    name='game',
+    help='Viser game-stats for spiller. !game <nick#ID> (optional)'
+)
+async def game_stat(ctx, *arg):
+    if len(arg) > 0:
+        author = str(arg[0])
+    else:
+        author = ctx.author
+    stat = 'Game'
+    msg = (f'__**Game stats for {str(author).split("#")[0]}**__')
+    await scrape_stats(ctx, stat, author, msg)
+
+
+@bot.command(
+    name='assists',
+    help='Viser assist-stats for spiller. !assists <nick#ID> (optional)'
+)
+async def assists_stat(ctx, *arg):
+    if len(arg) > 0:
+        author = str(arg[0])
+    else:
+        author = ctx.author
+    stat = 'Assists'
+    msg = (f'__**Assist stats for {str(author).split("#")[0]}**__')
+    await scrape_stats(ctx, stat, author, msg)
+
+
+@bot.command(
+    name='medals',
+    help='Viser medalje-stats for spiller. !medals <nick#ID> (optional)'
+)
+async def medals_stat(ctx, *arg):
+    if len(arg) > 0:
+        author = str(arg[0])
+    else:
+        author = ctx.author
+    stat = 'Match Awards'
+    msg = (f'__**Medal stats for {str(author).split("#")[0]}**__')
+    await scrape_stats(ctx, stat, author, msg)
+
+
+@bot.command(
+    name='misc',
+    help='Viser misc-stats for spiller. !misc <nick#ID> (optional)'
+)
+async def misc_stat(ctx, *arg):
+    if len(arg) > 0:
+        author = str(arg[0])
+    else:
+        author = ctx.author
+    stat = 'Miscellaneous'
+    msg = (f'__**Miscellaneous stats for {str(author).split("#")[0]}**__')
+    await scrape_stats(ctx, stat, author, msg)
+
+
+@bot.command(
+    name='dmgrank',
+    help='Rangerig med mest damage per 10 min i snitt'
+)
+async def dmg_rank(ctx):
+    tmp = []
+    for nick, url in profiler.items():
+        try:
+            res = requests.get(url)
+            soup = bs4.BeautifulSoup(res.text, features='lxml')
+            dmg = soup.select(
+                'tr[data-stat-id="0x0860000000000386"] > td')[1].text
+            tmp.append((int(dmg), nick))
+        except:
+            pass
+    result = sorted(tmp, reverse=True)
+    msg = '**__Ranking - All Damage Done - Avg per 10 Min__**'
+    spot = 1
+    for row in result:
+        msg = msg + (f'\n{spot} - {row[1].split("#")[0]}: {row[0]}')
+        spot += 1
+    await ctx.send(msg)
+
+
+@bot.command(
+    name='healrank',
+    help='Rangerig med mest healing per 10 min i snitt'
+)
+async def healing_rank(ctx):
+    tmp = []
+    for nick, url in profiler.items():
+        try:
+            res = requests.get(url)
+            soup = bs4.BeautifulSoup(res.text, features='lxml')
+            heal = soup.select(
+                'tr[data-stat-id="0x08600000000004B2"] > td')[1].text
+            tmp.append((int(heal), nick))
+        except:
+            pass
+    result = sorted(tmp, reverse=True)
+    msg = '**__Ranking - Healing Done - Avg per 10 Min__**'
+    spot = 1
+    for row in result:
+        msg = msg + (f'\n{spot} - {row[1].split("#")[0]}: {row[0]}')
+        spot += 1
+    await ctx.send(msg)
+
+
+@bot.command(
+    name='deathrank',
+    help='Rangerig med mest deaths per 10 min i snitt'
+)
+async def death_rank(ctx):
+    tmp = []
+    for nick, url in profiler.items():
+        try:
+            res = requests.get(url)
+            soup = bs4.BeautifulSoup(res.text, features='lxml')
+            death = soup.select(
+                'tr[data-stat-id="0x08600000000004C3"] > td')[1].text
+            tmp.append((float(death), nick))
+        except:
+            pass
+    result = sorted(tmp, reverse=True)
+    msg = '**__Ranking - Deaths - Avg per 10 Min__**'
+    spot = 1
+    for row in result:
+        msg = msg + (f'\n{spot} - {row[1].split("#")[0]}: {row[0]}')
+        spot += 1
+    await ctx.send(msg)
+
+
+@bot.event
 async def on_message(message):
-    if message.author == client.user:
+    if message.author == bot.user:
         return
 
-    if message.content.startswith("$hello"):
-        nick = str(message.author).split('#')[0]
-        await message.channel.send(f"Hei, {nick}!")
+    await bot.process_commands(message)
 
-    if message.content.startswith("$quote"):
-        quote = get_quote()
-        await message.channel.send(quote)
-
-    if message.content.startswith("$test"):
-        async for msg in message.channel.history(limit=10000):
-            await message.channel.send(msg.author.name)
-
-    if message.content.startswith("$cloud"):
-        text = ''
-        async for msg in message.channel.history():
-            text = text + msg.content + " "
-        wordcloud = WordCloud(width=800, height=400,
-                              stopwords=stopwords).generate(text)
-        wordcloud.to_file("cloud.png")
-
-        await message.channel.send(file=discord.File('cloud.png'))
-
-    if message.content.startswith("$best"):
-        if str(message.author) in profiler:
-            profile = profiler[str(message.author)]
-            res = requests.get(profile)
-            res.raise_for_status()
-
-            soup = bs4.BeautifulSoup(res.text, features='lxml')
-            soup2 = soup.find("h5", text="Best").parent.parent.parent.parent
-            best = soup2.find_all("tr", attrs={"class": "DataTable-tableRow"})
-            msg = (
-                f'__**Best stats for {str(message.author).split("#")[0]}**__')
-            for i in best:
-                cols = i.select('td')
-                title, value = cols[0].text, cols[1].text
-                msg = msg + (f'\n{title}: **{value}**')
-            await message.channel.send(msg)
-        else:
-            await message.channel.send("Du har ikke registrert profil-URL.")
-
-    if message.content.startswith("$average"):
-        if str(message.author) in profiler:
-            profile = profiler[str(message.author)]
-            res = requests.get(profile)
-            res.raise_for_status()
-
-            soup = bs4.BeautifulSoup(res.text, features='lxml')
-            soup2 = soup.find(
-                "h5", text="Average").parent.parent.parent.parent
-            best = soup2.find_all(
-                "tr", attrs={"class": "DataTable-tableRow"})
-            msg = (
-                f'__**Average stats for {str(message.author).split("#")[0]}**__')
-            for i in best:
-                cols = i.select('td')
-                title, value = cols[0].text, cols[1].text
-                msg = msg + (f'\n{title}: **{value}**')
-            await message.channel.send(msg)
-        else:
-            await message.channel.send("Du har ikke registrert profil-URL.")
-
-    if message.content.startswith("$game"):
-        if str(message.author) in profiler:
-            profile = profiler[str(message.author)]
-            res = requests.get(profile)
-            res.raise_for_status()
-
-            soup = bs4.BeautifulSoup(res.text, features='lxml')
-            soup2 = soup.find(
-                "h5", text="Game").parent.parent.parent.parent
-            best = soup2.find_all(
-                "tr", attrs={"class": "DataTable-tableRow"})
-            msg = (
-                f'__**Game stats for {str(message.author).split("#")[0]}**__')
-            for i in best:
-                cols = i.select('td')
-                title, value = cols[0].text, cols[1].text
-                msg = msg + (f'\n{title}: **{value}**')
-            await message.channel.send(msg)
-        else:
-            await message.channel.send("Du har ikke registrert profil-URL.")
-
-    if message.content.startswith("$assists"):
-        if str(message.author) in profiler:
-            profile = profiler[str(message.author)]
-            res = requests.get(profile)
-            res.raise_for_status()
-
-            soup = bs4.BeautifulSoup(res.text, features='lxml')
-            soup2 = soup.find(
-                "h5", text="Assists").parent.parent.parent.parent
-            best = soup2.find_all(
-                "tr", attrs={"class": "DataTable-tableRow"})
-            msg = (
-                f'__**Assist stats for {str(message.author).split("#")[0]}**__')
-            for i in best:
-                cols = i.select('td')
-                title, value = cols[0].text, cols[1].text
-                msg = msg + (f'\n{title}: **{value}**')
-            await message.channel.send(msg)
-        else:
-            await message.channel.send("Du har ikke registrert profil-URL.")
-
-    if message.content.startswith("$medals"):
-        if str(message.author) in profiler:
-            profile = profiler[str(message.author)]
-            res = requests.get(profile)
-            res.raise_for_status()
-
-            soup = bs4.BeautifulSoup(res.text, features='lxml')
-            soup2 = soup.find(
-                "h5", text="Match Awards").parent.parent.parent.parent
-            best = soup2.find_all(
-                "tr", attrs={"class": "DataTable-tableRow"})
-            msg = (
-                f'__**Medal stats for {str(message.author).split("#")[0]}**__')
-            for i in best:
-                cols = i.select('td')
-                title, value = cols[0].text, cols[1].text
-                msg = msg + (f'\n{title}: **{value}**')
-            await message.channel.send(msg)
-        else:
-            await message.channel.send("Du har ikke registrert profil-URL.")
-
-    if message.content.startswith("$combat"):
-        if str(message.author) in profiler:
-            profile = profiler[str(message.author)]
-            res = requests.get(profile)
-            res.raise_for_status()
-
-            soup = bs4.BeautifulSoup(res.text, features='lxml')
-            soup2 = soup.find(
-                "h5", text="Combat").parent.parent.parent.parent
-            best = soup2.find_all(
-                "tr", attrs={"class": "DataTable-tableRow"})
-            msg = (
-                f'__**Combat stats for {str(message.author).split("#")[0]}**__')
-            for i in best:
-                cols = i.select('td')
-                title, value = cols[0].text, cols[1].text
-                msg = msg + (f'\n{title}: **{value}**')
-            await message.channel.send(msg)
-        else:
-            await message.channel.send("Du har ikke registrert profil-URL.")
-
-    if message.content.startswith("$dmgrank"):
-        tmp = []
-        for nick, url in profiler.items():
-            try:
-                res = requests.get(url)
-                soup = bs4.BeautifulSoup(res.text, features='lxml')
-                dmg = soup.select(
-                    'tr[data-stat-id="0x0860000000000386"] > td')[1].text
-                tmp.append((int(dmg), nick))
-            except:
-                pass
-        result = sorted(tmp, reverse=True)
-        msg = '**__Ranking - All Damage Done - Avg per 10 Min__**'
-        spot = 1
-        for row in result:
-            msg = msg + (f'\n{spot} - {row[1].split("#")[0]}: {row[0]}')
-            spot += 1
-        await message.channel.send(msg)
-
-    if message.content.startswith("$healrank"):
-        tmp = []
-        for nick, url in profiler.items():
-            try:
-                res = requests.get(url)
-                soup = bs4.BeautifulSoup(res.text, features='lxml')
-                heal = soup.select(
-                    'tr[data-stat-id="0x08600000000004B2"] > td')[1].text
-                tmp.append((int(heal), nick))
-            except:
-                pass
-        result = sorted(tmp, reverse=True)
-        msg = '**__Ranking - Healing Done - Avg per 10 Min__**'
-        spot = 1
-        for row in result:
-            msg = msg + (f'\n{spot} - {row[1].split("#")[0]}: {row[0]}')
-            spot += 1
-        await message.channel.send(msg)
-
-    if message.content.startswith("$deathrank"):
-        tmp = []
-        for nick, url in profiler.items():
-            try:
-                res = requests.get(url)
-                soup = bs4.BeautifulSoup(res.text, features='lxml')
-                death = soup.select(
-                    'tr[data-stat-id="0x08600000000004C3"] > td')[1].text
-                tmp.append((float(death), nick))
-            except:
-                pass
-        result = sorted(tmp, reverse=True)
-        msg = '**__Ranking - Deaths - Avg per 10 Min__**'
-        spot = 1
-        for row in result:
-            msg = msg + (f'\n{spot} - {row[1].split("#")[0]}: {row[0]}')
-            spot += 1
-        await message.channel.send(msg)
-
-
-client.run(os.getenv('TOKEN'))
+bot.run(os.getenv('TOKEN'))
