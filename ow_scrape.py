@@ -15,6 +15,7 @@ stats = soup.find_all("tr", attrs={"class": "DataTable-tableRow"})
 tmp = soup.find_all("select", attrs={"data-js": "career-select"})[1]
 heroes = tmp.select('select > option')
 
+
 hero_list = []
 for hero in heroes:
     hero_list.append(hero.text)
@@ -32,3 +33,4 @@ for i, v in enumerate(hero_list):
 # print(count)
 
 # quickplay > section:nth-child(2) > div > div.flex-container\@md-min.m-bottom-items > div.flex-item\@md-min.m-grow.u-align-right > div > select
+# quickplay > section:nth-child(2) > div > div:nth-child(14) > div:nth-child(1) > div > table > tbody > tr:nth-child(2) > td:nth-child(1)

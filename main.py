@@ -256,6 +256,39 @@ async def death_rank(ctx):
     await ctx.send(msg)
 
 
+@bot.command(
+    name='main',
+    help='Hero specific stats for main'
+)
+async def main_stats(ctx):
+    if str(ctx.author) in profiler:
+        profile = profiler[str(ctx.author)]
+        nick = str(ctx.author).split("#")[0]
+        res = requests.get(profile)
+        res.raise_for_status()
+        soup = bs4.BeautifulSoup(res.text, features='lxml')
+        main = soup.find('div', attrs={'class': 'ProgressBar-title'}).text
+        heroes = [hero.text for hero in soup.find_all(
+            "select", attrs={"data-js": "career-select"})[1].select('select > option')]
+        # print(heroes)
+        main_index = heroes.index(main)
+        # print(main_index)
+        quickplay_soup = soup.find('div', attrs={'id': 'quickplay'})
+        stats_soup = quickplay_soup.find_all(
+            "div", attrs={"data-group-id": "stats"})
+        print(len(stats_soup))
+        msg = f'__**Hero specific stats with {main} for {nick}**__'
+        main_soup = stats_soup[main_index].find(
+            "h5", text="Hero Specific").parent.parent.parent.parent
+        main_stats = main_soup.find_all(
+            "tr", attrs={"class": "DataTable-tableRow"})
+        for i in main_stats:
+            cols = i.select('td')
+            title, value = cols[0].text, cols[1].text
+            msg = msg + (f'\n{title}: **{value}**')
+        await ctx.send(msg)
+
+
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
