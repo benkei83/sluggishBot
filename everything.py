@@ -59,30 +59,3 @@ for tag in profiler:
     except Exception as e:
         print(str(e))
         continue
-
-df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
-# df = pd.DataFrame(alle_stats)
-df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
-
-
-def main_apply(row):
-    if (row['Nick'] == 'slug') & (row['Hero'] == 'Soldier: 76'):
-        return True
-    elif (row['Nick'] == 'kidneypool') & (row['Hero'] == 'Reinhardt'):
-        return True
-    elif (row['Nick'] == 'LarsErikO') & (row['Hero'] == 'Lúcio'):
-        return True
-    elif (row['Nick'] == 'myoung') & (row['Hero'] == 'Baptiste'):
-        return True
-    elif (row['Nick'] == 'Stiananan') & (row['Hero'] == 'Orisa'):
-        return True
-    else:
-        return False
-
-
-print(df)
-
-# df = df.assign(main=df.apply(main_apply, axis=1))
-
-# print(df[(df['Stat'].str.contains('Avg')) & (df['main'] == True)].pivot(
-#     index='Stat', columns='Nick', values='Value'))

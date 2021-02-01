@@ -6,6 +6,7 @@ import requests
 import json
 import bs4
 from wordcloud import WordCloud
+import pandas as pd
 
 # Environmental settings
 load_dotenv()
@@ -211,12 +212,28 @@ async def dmg_rank(ctx):
     msg = '**__Ranking - All Damage Done - Avg per 10 Min__**'
     spot = 1
     for row in result:
-        msg = msg + (f'\n{spot} - {row[1].split("#")[0]}: {row[0]}')
+        msg = msg + (f'\n{spot} - {row[1].split("#")[0]}: **{row[0]}**')
         spot += 1
     await ctx.send(msg)
 
 
 @bot.command(
+    name='firerank',
+    help='Rangering med gjennomsnittlig tid on fire'
+)
+async def on_fire(ctx):
+    df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
+    df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
+    fire = df.assign(ranking=df.loc[(df['Stat'] == "Time Spent on Fire - Avg per 10 Min") & (df['Hero'] == "ALL HEROES") & (df['Mode'] == "Quickplay"), 'Value'].rank(ascending=False))[
+        (df['Stat'] == "Time Spent on Fire - Avg per 10 Min") & (df['Hero'] == "ALL HEROES") & (df['Mode'] == "Quickplay")].loc[:, ['ranking', 'Nick', 'Value']].sort_values(by=['ranking'])
+    msg = '**__Ranking - Time Spent on Fire - Avg per 10 Min__**\n'
+    for index, row in fire.iterrows():
+        msg = msg + \
+            f"{int(row['ranking'])} - {row['Nick']}: **{int(row['Value'])}s**\n"
+    await ctx.send(msg)
+
+
+@ bot.command(
     name='healrank',
     help='Rangerig med mest healing per 10 min i snitt'
 )
@@ -240,7 +257,7 @@ async def healing_rank(ctx):
     await ctx.send(msg)
 
 
-@bot.command(
+@ bot.command(
     name='deathrank',
     help='Rangerig med mest deaths per 10 min i snitt'
 )
