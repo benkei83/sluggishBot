@@ -78,6 +78,14 @@ async def ordsky(ctx):
 
 
 @bot.command(
+    name='csv',
+    help='Sender siste versjon av csv-fil, alle data.'
+)
+async def send_csv(ctx):
+    await ctx.send(file=discord.File('data/stats.csv'))
+
+
+@bot.command(
     name='quote',
     help='Skriver ut en random quote'
 )

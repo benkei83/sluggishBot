@@ -8,20 +8,12 @@ profiler = {'slug#8001': 'https://playoverwatch.com/en-us/career/nintendo-switch
             'kidneypool#5944': 'https://playoverwatch.com/en-us/career/nintendo-switch/kidneypool-66b444e2ea860954c2d60b291d5b2891/',
             'lundefugl#6477': 'https://playoverwatch.com/en-us/career/nintendo-switch/sk:biRd-575879571c4e49637754c4720a32ebcd/'}
 
-tmp = []
-for nick, url in profiler.items():
-    try:
-        res = requests.get(url)
-        soup = bs4.BeautifulSoup(res.text, features='lxml')
-        death = soup.select(
-            'tr[data-stat-id="0x08600000000004C3"] > td')[1].text
-        tmp.append((float(death), nick))
-    except:
-        pass
-result = sorted(tmp, reverse=True)
-msg = '**__Ranking - Deaths - Avg per 10 Min__**'
-spot = 1
-for row in result:
-    msg = msg + (f'\n{spot} - {row[1].split("#")[0]}: {row[0]}')
-    spot += 1
-print(msg)
+res = requests.get(profiler['kidneypool#5944'])
+res.raise_for_status()
+
+soup = bs4.BeautifulSoup(res.text, features='lxml')
+heroes = soup.find_all(
+    "select", attrs={"data-js": "career-select"})[3].select('select > option')
+
+for hero in heroes:
+    print(hero)

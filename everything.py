@@ -25,36 +25,44 @@ for tag in profiler:
         res.raise_for_status()
 
         soup = bs4.BeautifulSoup(res.text, features='lxml')
-        heroes = soup.find_all(
-            "select", attrs={"data-js": "career-select"})[1].select('select > option')
+        # heroes = soup.find_all(
+        #     "select", attrs={"data-js": "career-select"})[1].select('select > option')
         quickplay_soup = soup.find('div', attrs={'id': 'quickplay'})
-        stats_soup = quickplay_soup.find_all(
-            "div", attrs={"data-group-id": "stats"})
-        for i in range(len(heroes)):
-            stats = stats_soup[i].find_all(
-                "tr", attrs={"class": "DataTable-tableRow"})
-            for stat in stats:
-                cols = stat.select('td')
-                title, value = cols[0].text, cols[1].text
-                if ":" in value:
-                    tmp = value.split(":")
-                    value = int(tmp[0])*60 + int(tmp[1])
-                elif "%" in value:
-                    value = int(value.replace('%', '')) / 100
-                print(time, nick, heroes[i].text, title, value)
-                # alle_stats.append(
-                #     [time, nick, heroes[i].text, title, value])
-                with open('data/info.csv', 'a', newline='') as file:
-                    writer = csv.writer(file)
-                    writer.writerow(
-                        [time, nick, heroes[i].text, title, value])
+        competitive_soup = soup.find('div', attrs={'id': 'competitive'})
+        modes = [quickplay_soup, competitive_soup]
+        mode_names = ['Quickplay', 'Competitive']
+        for mode in range(len(modes)):
+            mode_index = 1 + (mode * 2)
+            heroes = soup.find_all("select", attrs={
+                                   "data-js": "career-select"})[mode_index].select('select > option')
+            stats_soup = modes[mode].find_all(
+                "div", attrs={"data-group-id": "stats"})
+            for i in range(len(heroes)):
+                stats = stats_soup[i].find_all(
+                    "tr", attrs={"class": "DataTable-tableRow"})
+                for stat in stats:
+                    cols = stat.select('td')
+                    title, value = cols[0].text, cols[1].text
+                    if ":" in value:
+                        tmp = value.split(":")
+                        value = int(tmp[0])*60 + int(tmp[1])
+                    elif "%" in value:
+                        value = int(value.replace('%', '')) / 100
+                    print(time, mode_names[mode], nick,
+                          heroes[i].text, title, value)
+                    # alle_stats.append(
+                    #     [time, nick, heroes[i].text, title, value])
+                    with open('data/stats.csv', 'a', newline='', encoding='utf-8') as file:
+                        writer = csv.writer(file)
+                        writer.writerow(
+                            [time, mode_names[mode], nick, heroes[i].text, title, value])
     except Exception as e:
         print(str(e))
         continue
 
-df = pd.read_csv('data/info.csv', encoding='unicode_escape')
+df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
 # df = pd.DataFrame(alle_stats)
-df.columns = ['Time', 'Nick', 'Hero', 'Stat', 'Value']
+df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
 
 
 def main_apply(row):
