@@ -6,6 +6,10 @@ from datetime import datetime
 import os
 import csv
 
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
+
 os.makedirs('data', exist_ok=True)
 
 profiler = {'slug#8001': 'https://playoverwatch.com/en-us/career/nintendo-switch/SK%3ASlug-2b9f80fe2f23386a731431e300bf9bb0/',

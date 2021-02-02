@@ -7,6 +7,13 @@ import json
 import bs4
 from wordcloud import WordCloud
 import pandas as pd
+import matplotlib.pyplot as plt
+import random
+
+
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
 
 # Environmental settings
 load_dotenv()
@@ -231,6 +238,63 @@ async def on_fire(ctx):
         msg = msg + \
             f"{int(row['ranking'])} - {row['Nick']}: **{int(row['Value'])}s**\n"
     await ctx.send(msg)
+
+
+@bot.command(
+    name='chart_test',
+    help='test av matplotlib'
+)
+async def chart(ctx):
+    df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
+    df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
+    fire = df.assign(ranking=df.loc[(df['Stat'] == "Time Spent on Fire - Avg per 10 Min") & (df['Hero'] == "ALL HEROES") & (df['Mode'] == "Quickplay"), 'Value'].rank(ascending=False))[
+        (df['Stat'] == "Time Spent on Fire - Avg per 10 Min") & (df['Hero'] == "ALL HEROES") & (df['Mode'] == "Quickplay")].loc[:, ['ranking', 'Nick', 'Value']].sort_values(by=['ranking'])
+    ax = fire.plot.bar(x='Nick', y='Value')
+    ax.set_title("Time Spent on Fire - Avg per 10 Min")
+    ax.set_ylabel('Seconds')
+    ax.set_xlabel('')
+    ax.get_legend().remove()
+    ax.tick_params(axis='x', labelrotation=0)
+    plt.savefig('test.png')
+    await ctx.send(file=discord.File('test.png'))
+
+
+@bot.command(
+    name='bar',
+    help='Lager rangering med barchart over en stat. !bar "<stat-navn>"'
+)
+async def barchart(ctx, *arg):
+
+    df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
+    df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
+    tmp = df[(df['Hero'] == "ALL HEROES") & (df["Mode"] == "Quickplay")]
+    kategorier = tmp['Stat'].unique().tolist()
+    df['Time'] = pd.to_datetime(df['Time'])
+    df = df.set_index('Time')
+    if len(arg) > 0:
+        kategori = str(arg[0])
+        if kategori == 'list':
+            msg = '```'
+            for k in kategorier:
+                msg = msg + k + "\n"
+            msg += '```'
+            await ctx.send(msg)
+            return
+    else:
+        kategori = random.choice(kategorier)
+        print(kategori)
+
+    table = df[(df['Stat'] == kategori) &
+               (df['Hero'] == "ALL HEROES") & (df["Mode"] == "Quickplay")].last('1H')
+    table = table.sort_values(by=['Value'], ascending=False)
+    ax = table.plot.bar(x='Nick', y='Value')
+    ax.set_title(kategori)
+    ax.set_ylabel('')
+    ax.set_xlabel('')
+    ax.get_legend().remove()
+    ax.tick_params(axis='x', labelrotation=0)
+    plt.savefig('test.png')
+    await ctx.send(file=discord.File('test.png'))
 
 
 @ bot.command(
