@@ -21,7 +21,7 @@ TOKEN = os.getenv('TOKEN')
 
 # Discord settings
 # client = discord.Client()
-bot = commands.Bot(command_prefix='!')
+bot = commands.Bot(command_prefix='!', case_insensitive=True)
 
 # Overwatch settings
 profiler = {'slug#8001': 'https://playoverwatch.com/en-us/career/nintendo-switch/SK%3ASlug-2b9f80fe2f23386a731431e300bf9bb0/',
@@ -35,6 +35,23 @@ profiler = {'slug#8001': 'https://playoverwatch.com/en-us/career/nintendo-switch
 stopwords = set()
 stopwords.update(["e", "på", "å", "med", "det", "og", "om",
                   "til", "va", "en", "vi", "d", "så", "den"])
+
+
+def main_apply(row):
+    if (row['Nick'] == 'slug') & (row['Hero'] == 'Soldier: 76'):
+        return True
+    elif (row['Nick'] == 'kidneypool') & (row['Hero'] == 'Reinhardt'):
+        return True
+    elif (row['Nick'] == 'LarsErikO') & (row['Hero'] == 'LÃºcio'):
+        return True
+    elif (row['Nick'] == 'myoung') & (row['Hero'] == 'Baptiste'):
+        return True
+    elif (row['Nick'] == 'Stiananan') & (row['Hero'] == 'Orisa'):
+        return True
+    elif (row['Nick'] == 'lundefugl') & (row['Hero'] == 'Bastion'):
+        return True
+    else:
+        return False
 
 
 def get_quote():
@@ -297,6 +314,68 @@ async def barchart(ctx, *arg):
     await ctx.send(file=discord.File('test.png'))
 
 
+@bot.command(
+    name='line',
+    help='line help'
+)
+async def linechart(ctx, *arg):
+    df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
+    df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
+    tmp = df[(df['Hero'] == "ALL HEROES") & (df["Mode"] == "Quickplay")]
+    kategorier = tmp['Stat'].unique().tolist()
+    df['Time'] = pd.to_datetime(df['Time']).dt.date
+    if len(arg) > 0:
+        kategori = str(arg[0])
+        if kategori == 'list':
+            msg = '```'
+            for k in kategorier:
+                msg = msg + k + "\n"
+            msg += '```'
+            await ctx.send(msg)
+            return
+    else:
+        kategori = random.choice(kategorier)
+        print(kategori)
+    test = df[(df['Stat'] == kategori)
+              & (df['Hero'] == "ALL HEROES") & (df["Mode"] == "Quickplay")]
+    pivot = test.pivot(index='Time', columns='Nick', values='Value')
+    pivot.plot.line()
+    plt.xticks(df['Time'].unique())
+    plt.title(kategori)
+    plt.savefig('line.png')
+    await ctx.send(file=discord.File('line.png'))
+
+
+# @bot.command(
+#     name='double',
+#     help='double axis help'
+# )
+# async def double(ctx, *arg):
+#     df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
+#     df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
+#     df['Time'] = pd.to_datetime(df['Time'])
+#     df = df.set_index('Time')
+#     df = df.assign(main=df.apply(main_apply, axis=1))
+#     tmp = df[(df['Hero'] == "ALL HEROES") & (
+#         df["Mode"] == "Quickplay")]
+#     kategorier = tmp['Stat'].unique().tolist()
+
+#     if len(arg) > 1:
+#         venstre, høyre = str(arg[0]), str(arg[1])
+#     elif len(arg) == 1:
+#         venstre, høyre = str(arg[0]), random.choice(kategorier)
+#     else:
+#         venstre, høyre = random.choice(kategorier), random.choice(kategorier)
+#     # df = df.last("2H")
+#     tmp = df[((df['Stat'] == høyre) | (df['Stat'] == venstre)) & (
+#         df['main'] == True)].last("2H").pivot(index='Nick', columns='Stat', values='Value')
+#     tmp.columns = [høyre, venstre]
+#     _ = tmp.plot(kind='bar', secondary_y=venstre, rot=0)
+#     plt.title(f'{venstre} vs {høyre}')
+#     plt.savefig('double.png')
+#     await ctx.send(file=discord.File('double.png'))
+
+
 @ bot.command(
     name='healrank',
     help='Rangerig med mest healing per 10 min i snitt'
@@ -376,6 +455,73 @@ async def main_stats(ctx):
             title, value = cols[0].text, cols[1].text
             msg = msg + (f'\n{title}: **{value}**')
         await ctx.send(msg)
+
+
+@bot.command(
+    name='myline',
+    help='linjediagram over tid for en stat'
+)
+async def my_line(ctx, *arg):
+    profile = profiler[str(ctx.author)]
+    nick = str(ctx.author).split("#")[0]
+    res = requests.get(profile)
+    res.raise_for_status()
+    soup = bs4.BeautifulSoup(res.text, features='lxml')
+    main_hero = soup.find('div', attrs={'class': 'ProgressBar-title'}).text
+    df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
+    df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
+    df['Time'] = pd.to_datetime(df['Time']).dt.date
+    # tmp = df[(df['Hero'] == main_hero) & (df["Mode"] == "Quickplay")]
+    tmp = df[(df['Hero'] == main_hero)]
+    kategorier = tmp['Stat'].unique().tolist()
+    if len(arg) > 0:
+        kategori = str(arg[0])
+        if kategori == 'list':
+            msg = '```'
+            for k in kategorier:
+                msg = msg + k + "\n"
+            msg += '```'
+            await ctx.send(msg)
+            return
+    if len(arg) > 1:
+        main_hero = str(arg[1])
+    if len(arg) == 0:
+        kategori = random.choice(kategorier)
+    hero_df = df[(df['Nick'] == nick) & (df['Stat'] == kategori) & (
+        df['Mode'] == 'Quickplay') & (df['Hero'] == main_hero)]
+    hero_df.plot(x='Time')
+    plt.xticks(df['Time'].unique())
+    plt.title(f'{kategori} for {nick} med {main_hero}')
+    plt.savefig('myline.png')
+    await ctx.send(file=discord.File('myline.png'))
+
+
+@bot.command(
+    name='winrate',
+    help='Line chart med team winrate. Sammenlagt for alle med main hero'
+)
+async def winrate_chart(ctx, *arg):
+    mode = 'Quickplay'
+    if arg and str(arg[0]).lower() == 'competitive':
+        mode = 'Competitive'
+    df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
+    df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
+    df = df.assign(main=df.apply(main_apply, axis=1))
+    df['Time'] = pd.to_datetime(df['Time']).dt.date
+
+    tmp = df[(df['Stat'] == 'Win Percentage') & (df['main'] == True) & (df['Mode'] == mode)
+             ].pivot(index='Time', columns='Nick', values='Value')
+    tmp = tmp.assign(mean=round(tmp.mean(axis=1), 3))
+    tmp = tmp.reset_index()
+    tmp['Time'] = pd.to_datetime(tmp['Time'], errors='coerce')
+    tmp['Weekday'] = tmp.Time.dt.day_name()
+    # print(tmp)
+    to_plot = tmp[['Time', 'mean']]
+    to_plot.plot(x='Time', legend=None)
+    plt.xticks(to_plot['Time'].unique())
+    plt.title('Gjennomsnitts winrate for laget totalt med main hero på ' + mode)
+    plt.savefig('winrate.png')
+    await ctx.send(file=discord.File('winrate.png'))
 
 
 @bot.event

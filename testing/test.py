@@ -8,12 +8,12 @@ profiler = {'slug#8001': 'https://playoverwatch.com/en-us/career/nintendo-switch
             'kidneypool#5944': 'https://playoverwatch.com/en-us/career/nintendo-switch/kidneypool-66b444e2ea860954c2d60b291d5b2891/',
             'lundefugl#6477': 'https://playoverwatch.com/en-us/career/nintendo-switch/sk:biRd-575879571c4e49637754c4720a32ebcd/'}
 
-res = requests.get(profiler['kidneypool#5944'])
+res = requests.get(profiler['slug#8001'])
 res.raise_for_status()
 
 soup = bs4.BeautifulSoup(res.text, features='lxml')
 heroes = soup.find_all(
-    "select", attrs={"data-js": "career-select"})[3].select('select > option')
+    "select", attrs={"data-js": "career-select"})[0].select('select > option')
 
 for hero in heroes:
     print(hero)

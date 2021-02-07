@@ -1,5 +1,10 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
+
+abspath = os.path.abspath(__file__)
+dname = os.path.dirname(abspath)
+os.chdir(dname)
 
 df = pd.read_csv('../data/stats.csv', encoding='unicode_escape')
 # df = pd.DataFrame(alle_stats)
@@ -81,15 +86,28 @@ def main_apply(row):
 
 # pct = df[(df['Stat'] == 'Win Percentage') & (df['main'] == True)].Value.mean()
 # print(pct)
-
+df = df.assign(main=df.apply(main_apply, axis=1))
 df['Time'] = pd.to_datetime(df['Time'])
 df = df.set_index('Time')
-tmp = df[df['Hero'] == 'ALL HEROES']
-kategorier = tmp['Stat'].unique().tolist()
-table = df[(df['Stat'] == "Turrets Destroyed - Most in Game") &
-           (df['Hero'] == "ALL HEROES") & (df["Mode"] == "Quickplay")]
-table = table.sort_values(by=['Value'], ascending=False)
-print(table)
+tmp = df[((df['Stat'] == 'Time Played') | (df['Stat'] == 'Medals')) & (
+    df['main'] == True)].last("2H")
+
+tmp.plot(x='Nick', y='Value', kind='bar', secondary_y='Medals', rot=0)
+plt.show()
+
+
+# tmp = df[df['Hero'] == 'ALL HEROES']
+# kategorier = tmp['Stat'].unique().tolist()
+# table = df[(df['Stat'] == "Medals") &
+#            (df['Hero'] == "ALL HEROES") & (df["Mode"] == "Quickplay")].last('2H')
+# table2 = df[(df['Stat'] == "Time Played") & (
+#     df['Hero'] == "ALL HEROES") & (df["Mode"] == "Quickplay")].last('2H')
+# table = table.sort_values(by=['Value'], ascending=False)
+# # plt.figure()
+# table.Value.plot.bar(x='Nick', y='Value')
+# table2.Value.plot.bar(x='Nick', y='Value', secondary_y=True, style='g')
+# plt.show()
+
 # test = df.last((df['Stat'] == "Time Spent on Fire - Avg per 10 Min")
 #                & (df['Hero'] == "ALL HEROES") & (df["Mode"] == "Quickplay"))
 # pivot = test.pivot(index='Nick', columns='Value')

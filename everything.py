@@ -49,7 +49,11 @@ for tag in profiler:
                     title, value = cols[0].text, cols[1].text
                     if ":" in value:
                         tmp = value.split(":")
-                        value = int(tmp[0])*60 + int(tmp[1])
+                        if len(tmp) == 2:
+                            value = int(tmp[0])*60 + int(tmp[1])
+                        else:
+                            value = int(tmp[0])*3600 + \
+                                int(tmp[1])*60 + int(tmp[2])
                     elif "%" in value:
                         value = int(value.replace('%', '')) / 100
                     print(time, mode_names[mode], nick,
