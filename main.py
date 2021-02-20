@@ -340,8 +340,9 @@ async def linechart(ctx, *arg):
               & (df['Hero'] == "ALL HEROES") & (df["Mode"] == "Quickplay")]
     pivot = test.pivot(index='Time', columns='Nick', values='Value')
     pivot.plot.line()
-    plt.xticks(df['Time'].unique())
+    plt.xticks(df['Time'].unique(), rotation=10)
     plt.title(kategori)
+    plt.locator_params(nbins=7)
     plt.savefig('line.png')
     await ctx.send(file=discord.File('line.png'))
 
@@ -490,7 +491,7 @@ async def my_line(ctx, *arg):
     hero_df = df[(df['Nick'] == nick) & (df['Stat'] == kategori) & (
         df['Mode'] == 'Quickplay') & (df['Hero'] == main_hero)]
     hero_df.plot(x='Time')
-    plt.xticks(df['Time'].unique())
+    plt.xticks(df['Time'].unique(), rotation='vertical')
     plt.title(f'{kategori} for {nick} med {main_hero}')
     plt.savefig('myline.png')
     await ctx.send(file=discord.File('myline.png'))
