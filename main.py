@@ -246,7 +246,7 @@ async def dmg_rank(ctx):
     help='Rangering med gjennomsnittlig tid on fire'
 )
 async def on_fire(ctx):
-    df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
+    df = pd.read_csv('data/stats.csv', encoding='utf-8')
     df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
     fire = df.assign(ranking=df.loc[(df['Stat'] == "Time Spent on Fire - Avg per 10 Min") & (df['Hero'] == "ALL HEROES") & (df['Mode'] == "Quickplay"), 'Value'].rank(ascending=False))[
         (df['Stat'] == "Time Spent on Fire - Avg per 10 Min") & (df['Hero'] == "ALL HEROES") & (df['Mode'] == "Quickplay")].loc[:, ['ranking', 'Nick', 'Value']].sort_values(by=['ranking'])
@@ -262,7 +262,7 @@ async def on_fire(ctx):
     help='test av matplotlib'
 )
 async def chart(ctx):
-    df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
+    df = pd.read_csv('data/stats.csv', encoding='utf-8')
     df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
     fire = df.assign(ranking=df.loc[(df['Stat'] == "Time Spent on Fire - Avg per 10 Min") & (df['Hero'] == "ALL HEROES") & (df['Mode'] == "Quickplay"), 'Value'].rank(ascending=False))[
         (df['Stat'] == "Time Spent on Fire - Avg per 10 Min") & (df['Hero'] == "ALL HEROES") & (df['Mode'] == "Quickplay")].loc[:, ['ranking', 'Nick', 'Value']].sort_values(by=['ranking'])
@@ -282,7 +282,7 @@ async def chart(ctx):
 )
 async def barchart(ctx, *arg):
 
-    df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
+    df = pd.read_csv('data/stats.csv', encoding='utf-8')
     df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
     tmp = df[(df['Hero'] == "ALL HEROES") & (df["Mode"] == "Quickplay")]
     kategorier = tmp['Stat'].unique().tolist()
@@ -319,7 +319,7 @@ async def barchart(ctx, *arg):
     help='line help'
 )
 async def linechart(ctx, *arg):
-    df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
+    df = pd.read_csv('data/stats.csv', encoding='utf-8')
     df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
     tmp = df[(df['Hero'] == "ALL HEROES") & (df["Mode"] == "Quickplay")]
     kategorier = tmp['Stat'].unique().tolist()
@@ -469,7 +469,7 @@ async def my_line(ctx, *arg):
     res.raise_for_status()
     soup = bs4.BeautifulSoup(res.text, features='lxml')
     main_hero = soup.find('div', attrs={'class': 'ProgressBar-title'}).text
-    df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
+    df = pd.read_csv('data/stats.csv', encoding='utf-8')
     df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
     df['Time'] = pd.to_datetime(df['Time']).dt.date
     # tmp = df[(df['Hero'] == main_hero) & (df["Mode"] == "Quickplay")]
@@ -505,7 +505,7 @@ async def winrate_chart(ctx, *arg):
     mode = 'Quickplay'
     if arg and str(arg[0]).lower() == 'competitive':
         mode = 'Competitive'
-    df = pd.read_csv('data/stats.csv', encoding='unicode_escape')
+    df = pd.read_csv('data/stats.csv', encoding='utf-8')
     df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
     df = df.assign(main=df.apply(main_apply, axis=1))
     df['Time'] = pd.to_datetime(df['Time']).dt.date
@@ -525,7 +525,197 @@ async def winrate_chart(ctx, *arg):
     await ctx.send(file=discord.File('winrate.png'))
 
 
-@bot.event
+@bot.command(
+    name='herocompare',
+    help='Sammenlign to heroes for en stat. !herocompare <stat> <hero1> <hero2> <mode>'
+)
+async def compare_heroes(ctx, *arg):  # <stat> <hero1> <hero2> <mode>
+    mode = 'Quickplay'
+    if len(arg) > 3 and str(arg[3]).lower() == 'competitive':
+        mode = 'Competitive'
+
+    # hero1, hero2, stat = str(arg[0]), str(arg[1]), str(arg[2])
+    nick = str(ctx.author).split("#")[0]
+    df = pd.read_csv('data/stats.csv', encoding='utf-8')
+    df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
+    df['Time'] = pd.to_datetime(df['Time']).dt.date
+    heroes = df[(df['Nick'] == nick) & (
+        df['Mode'] == mode)].Hero.unique().tolist()
+    hero1 = heroes.pop(random.randint(1, len(heroes)-1))
+    hero2 = heroes.pop(random.randint(1, len(heroes)-1))
+    stats = df[(df['Nick'] == nick) & (df['Mode'] == mode) & (
+        df['Hero'].isin([hero1, hero2]))].Stat.unique().tolist()
+    stat = random.choice(stats)
+    if len(arg) > 0:
+        stat = str(arg[0])
+    if len(arg) > 1:
+        hero1 = str(arg[1])
+    if len(arg) > 2:
+        hero2 = str(arg[2])
+    # hero1df = df[(df['Nick'] == nick) & (df['Mode'] == mode) &
+    #              (df['Hero'] == hero1) & (df['Stat'] == stat)]
+    # hero2df = df[(df['Nick'] == nick) & (df['Mode'] == mode) &
+    #              (df['Hero'] == hero2) & (df['Stat'] == stat)]
+    herodf = df[(df['Nick'] == nick) & (df['Mode'] == mode) & (df['Hero'].isin([hero1, hero2])) & (
+        df['Stat'] == stat)].pivot(index='Time', columns='Hero', values='Value')
+    herodf.plot()
+    plt.xticks(rotation='vertical')
+    plt.title(f'{stat} - {hero1} vs {hero2} i {mode}')
+    plt.savefig('herocompare.png')
+    await ctx.send(file=discord.File('herocompare.png'))
+
+
+@bot.command(
+    name='statcompare',
+    help='Sammenlign to stats for en hero. !statcompare <stat1> <stat2> <hero> <mode>'
+)
+async def compare_stats(ctx, *arg):  # <stat1> <stat2> <hero> <mode>
+    mode = 'Quickplay'
+    if len(arg) > 3 and str(arg[3]).lower() == 'competitive':
+        mode = 'Competitive'
+    profile = profiler[str(ctx.author)]
+    nick = str(ctx.author).split("#")[0]
+    res = requests.get(profile)
+    res.raise_for_status()
+    soup = bs4.BeautifulSoup(res.text, features='lxml')
+    hero = soup.find('div', attrs={'class': 'ProgressBar-title'}).text
+    # hero1, hero2, stat = str(arg[0]), str(arg[1]), str(arg[2])
+
+    df = pd.read_csv('data/stats.csv', encoding='utf-8')
+    df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
+    df['Time'] = pd.to_datetime(df['Time']).dt.date
+    # heroes = df[(df['Nick'] == nick) & (
+    #     df['Mode'] == mode)].Hero.unique().tolist()
+    if len(arg) > 2:
+        hero = str(arg[2])
+    stats = df[(df['Nick'] == nick) & (df['Mode'] == mode) & (
+        df['Hero'] == hero)].Stat.unique().tolist()
+
+    stat1 = stats.pop(random.randint(1, len(stats)-1))
+    stat2 = stats.pop(random.randint(1, len(stats)-1))
+    if len(arg) > 0:
+        stat1 = str(arg[0])
+    if len(arg) > 1:
+        stat2 = str(arg[1])
+
+    # stat1df = df[(df['Nick'] == nick) & (df['Mode'] == mode) &
+    #              (df['Hero'] == hero) & (df['Stat'] == stat1)]
+    # stat2df = df[(df['Nick'] == nick) & (df['Mode'] == mode) &
+    #              (df['Hero'] == hero) & (df['Stat'] == stat2)]
+    statplot = df[(df['Nick'] == nick) & (df['Mode'] == mode) & (df['Hero'] == hero) & (
+        df['Stat'].isin([stat1, stat2]))].pivot(index='Time', columns='Stat', values='Value')
+    statplot.plot()
+    plt.xticks(rotation='vertical')
+    plt.title(f'{hero} - {stat1} vs {stat2} i {mode}')
+    plt.savefig('statcompare.png')
+    await ctx.send(file=discord.File('statcompare.png'))
+
+
+@bot.command(
+    name='modecompare',
+    help='Sammenligning mellom modes. !modecompare <stat> <hero>'
+)
+async def compare_mode(ctx, *arg):  # <stat> <hero>
+    profile = profiler[str(ctx.author)]
+    nick = str(ctx.author).split("#")[0]
+    res = requests.get(profile)
+    res.raise_for_status()
+    soup = bs4.BeautifulSoup(res.text, features='lxml')
+    hero = soup.find('div', attrs={'class': 'ProgressBar-title'}).text
+
+    df = pd.read_csv('data/stats.csv', encoding='utf-8')
+    df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
+    df['Time'] = pd.to_datetime(df['Time']).dt.date
+    if len(arg) > 1:
+        hero = str(arg[1])
+    stats = df[(df['Nick'] == nick) & (
+        df['Hero'] == hero)].Stat.unique().tolist()
+
+    stat = random.choice(stats)
+    if len(arg) > 0:
+        stat = str(arg[0])
+    # stat1df = df[(df['Nick'] == nick) & (df['Mode'] == mode) &
+    #              (df['Hero'] == hero) & (df['Stat'] == stat1)]
+    # stat2df = df[(df['Nick'] == nick) & (df['Mode'] == mode) &
+    #              (df['Hero'] == hero) & (df['Stat'] == stat2)]
+    modeplot = df[(df['Nick'] == nick) & (df['Mode'].isin(['Quickplay', 'Competitive'])) & (df['Hero'] == hero) & (
+        df['Stat'] == stat)].pivot(index='Time', columns='Mode', values='Value')
+    modeplot.plot()
+    plt.xticks(rotation='vertical')
+    plt.title(f'{hero} - {stat}')
+    plt.savefig('modecompare.png')
+    await ctx.send(file=discord.File('modecompare.png'))
+
+
+@bot.command(
+    name='dailyrate',
+    help=''
+)
+async def daily_rate(ctx, *arg):  # <stat1> / < stat2 > <hero > <mode >
+    profile = profiler[str(ctx.author)]
+    nick = str(ctx.author).split("#")[0]
+    res = requests.get(profile)
+    res.raise_for_status()
+    soup = bs4.BeautifulSoup(res.text, features='lxml')
+    hero = soup.find('div', attrs={'class': 'ProgressBar-title'}).text
+
+    df = pd.read_csv('data/stats.csv', encoding='utf-8')
+    df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
+    df['Time'] = pd.to_datetime(df['Time']).dt.date
+    if len(arg) > 2:
+        hero = str(arg[2])
+    stats = df[(df['Nick'] == nick) & (
+        df['Hero'] == hero)].Stat.unique().tolist()
+    if len(arg) > 0:
+        stat1 = str(arg[0])
+    if len(arg) > 1:
+        stat2 = str(arg[1])
+    mode = 'Quickplay'
+    if len(arg) > 3 and str(arg[3]).lower() == 'competitive':
+        mode = 'Competitive'
+
+    tmp = df[(df['Nick'] == nick) & (df['Mode'] == mode) & (df['Hero'] == hero) & (
+        df['Stat'].isin([stat1, stat2]))].pivot(index='Time', columns='Stat', values='Value')
+    tmp['Diff1'] = tmp[stat1].diff()
+    tmp['Diff2'] = tmp[stat2].diff()
+    tmp['Rate'] = tmp['Diff1']/tmp['Diff2']
+    plt.clf()
+    tmp['Rate'].plot.bar()
+    plt.xticks(rotation=90)
+    plt.title(f'Daily rate - {hero} - {stat1}/{stat2}')
+    plt.savefig('dailyrate.png')
+    await ctx.send(file=discord.File('dailyrate.png'))
+
+
+@bot.command(
+    name='statlist',
+    help=''
+)
+async def statlist(ctx, *arg):  # <hero>
+    profile = profiler[str(ctx.author)]
+    nick = str(ctx.author).split("#")[0]
+    res = requests.get(profile)
+    res.raise_for_status()
+    soup = bs4.BeautifulSoup(res.text, features='lxml')
+    hero = soup.find('div', attrs={'class': 'ProgressBar-title'}).text
+
+    df = pd.read_csv('data/stats.csv', encoding='utf-8')
+    df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
+    df['Time'] = pd.to_datetime(df['Time']).dt.date
+
+    if len(arg) > 0:
+        hero = str(arg[0])
+
+    stats = sorted(df[(df['Nick'] == nick) & (
+        df['Hero'] == hero)].Stat.unique().tolist())
+    msg = f'```--- {hero} ---\n'
+    for k in stats:
+        msg = msg + k + "\n"
+    msg += '```'
+    await ctx.send(msg)
+
+
+@ bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
