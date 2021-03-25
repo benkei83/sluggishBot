@@ -31,6 +31,7 @@ for tag in profiler:
         soup = bs4.BeautifulSoup(res.text, features='lxml')
         # heroes = soup.find_all(
         #     "select", attrs={"data-js": "career-select"})[1].select('select > option')
+
         quickplay_soup = soup.find('div', attrs={'id': 'quickplay'})
         competitive_soup = soup.find('div', attrs={'id': 'competitive'})
         modes = [quickplay_soup, competitive_soup]
@@ -64,6 +65,19 @@ for tag in profiler:
                         writer = csv.writer(file)
                         writer.writerow(
                             [time, mode_names[mode], nick, heroes[i].text, title, value])
+        ranks = soup.find_all('div', attrs={'class': 'competitive-rank-role'})
+        for rank in range(int(len(ranks)/2)):
+            if "Damage Skill Rating" in str(ranks[rank]):
+                skill = "DPS"
+            elif "Support Skill Rating" in str(ranks[rank]):
+                skill = "Support"
+            elif "Tank Skill Rating" in str(ranks[rank]):
+                skill = "Tank"
+            rating = ranks[rank].find(
+                "div", attrs={"class": "competitive-rank-level"}).text
+            with open('data/sr.csv', 'a', newline='', encoding='utf-8') as file:
+                writer = csv.writer(file)
+                writer.writerow([time, nick, skill, rating])
     except Exception as e:
         print(str(e))
         continue

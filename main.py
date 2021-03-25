@@ -9,6 +9,7 @@ from wordcloud import WordCloud
 import pandas as pd
 import matplotlib.pyplot as plt
 import random
+import zipfile
 
 
 abspath = os.path.abspath(__file__)
@@ -107,7 +108,10 @@ async def ordsky(ctx):
     help='Sender siste versjon av csv-fil, alle data.'
 )
 async def send_csv(ctx):
-    await ctx.send(file=discord.File('data/stats.csv'))
+    with zipfile.ZipFile('data/stats.zip', 'w', zipfile.ZIP_DEFLATED) as zip:
+        zip.write('data/stats.csv')
+        zip.write('data/sr.csv')
+    await ctx.send(file=discord.File('data/stats.zip'))
 
 
 @bot.command(
@@ -117,6 +121,32 @@ async def send_csv(ctx):
 async def print_quote(ctx):
     quote = get_quote()
     await ctx.send(quote)
+
+
+@bot.command(
+    name='sr',
+    help='skriver ut sr i synkende rekkefølge'
+)
+async def get_sr(ctx):
+    ranks = []
+    for tag in profiler:
+        url = profiler[tag]
+        nick = tag.split("#")[0]
+        try:
+            res = requests.get(url)
+            res.raise_for_status()
+            soup = bs4.BeautifulSoup(res.text, features='lxml')
+            rank = soup.find(
+                'div', attrs={"class": "competitive-rank-level"}).text
+            ranks.append((rank, nick))
+        except Exception as e:
+            print(str(e))
+            continue
+
+    msg = ''
+    for r in sorted(ranks, reverse=False):
+        msg = msg + f'\n{r[1]}: {r[0]}'
+    await ctx.send(msg)
 
 
 @bot.command(
@@ -648,8 +678,31 @@ async def compare_mode(ctx, *arg):  # <stat> <hero>
 
 
 @bot.command(
+    name='herotime',
+    help='Viser tid brukt med hver hero'
+)
+async def hero_time(ctx):
+    nick = str(ctx.author).split("#")[0]
+    df = pd.read_csv('data/stats.csv', encoding='utf-8')
+    df.columns = ['Time', 'Mode', 'Nick', 'Hero', 'Stat', 'Value']
+    df['Time'] = pd.to_datetime(df['Time']).dt.date
+    herotime = df[(df['Nick'] == nick) & (df['Stat'] == 'Time Played') & (df['Time'] == df.Time.max()) & (
+        df['Hero'] != 'ALL HEROES')]
+    pd.options.mode.chained_assignment = None
+    herotime['Value'] = herotime['Value'].div(3600)
+    herotime_pivot = herotime.pivot(
+        index='Hero', columns='Mode', values='Value').sort_values(by='Quickplay')
+    height = len(herotime['Hero'].unique()) / 1.3
+    herotime_pivot.plot(kind='barh', figsize=(8, height)).grid(axis='x')
+    plt.title(f'Tid per hero')
+    plt.legend(loc='lower right')
+    plt.savefig('herotime.png')
+    await ctx.send(file=discord.File('herotime.png'))
+
+
+@bot.command(
     name='dailyrate',
-    help=''
+    help='!dailyrate <stat1> <stat2> <hero> <mode>. stat1/stat2 per dag.'
 )
 async def daily_rate(ctx, *arg):  # <stat1> / < stat2 > <hero > <mode >
     profile = profiler[str(ctx.author)]
@@ -689,7 +742,7 @@ async def daily_rate(ctx, *arg):  # <stat1> / < stat2 > <hero > <mode >
 
 @bot.command(
     name='statlist',
-    help=''
+    help='!statlist <hero>. Lister tilgjengelige stats med en hero. Mest spilte hero er default.'
 )
 async def statlist(ctx, *arg):  # <hero>
     profile = profiler[str(ctx.author)]
@@ -713,6 +766,52 @@ async def statlist(ctx, *arg):  # <hero>
         msg = msg + k + "\n"
     msg += '```'
     await ctx.send(msg)
+
+
+# @bot.command(
+#     name='teamsr',
+#     help='Viser graf for SR over tid'
+# )
+# async def sr_plot(ctx):
+#     df = pd.read_csv('data/sr.csv', encoding='utf-8', header=None)
+#     df.columns = ['Time', 'Nick', 'Class', 'Rating']
+#     df['Time'] = pd.to_datetime(df['Time']).dt.date
+#     df.set_index('Time')
+#     df_pivot = df.pivot(index='Time', columns=[
+#                         'Nick', 'Class'], values='Rating')
+#     df_pivot.plot(figsize=(14, 9), xticks=df['Time'].unique()).grid(axis='y')
+#     plt.title(f'Skill Rating')
+#     plt.legend(loc='lower left')
+#     plt.savefig('teamsr.png')
+#     await ctx.send(file=discord.File('teamsr.png'))
+
+@bot.command(
+    name='teamsr',
+    help='Viser graf for SR over tid'
+)
+async def sr_plot(ctx):
+    df = pd.read_csv('data/sr.csv', encoding='utf-8', header=None)
+    df.columns = ['Time', 'Nick', 'Class', 'Rating']
+    df['Time'] = pd.to_datetime(df['Time']).dt.date
+    # df.set_index('Time')
+    df['Nick_Class'] = df['Nick'] + " " + df['Class']
+
+    date_range = pd.DataFrame(pd.date_range(
+        min(df['Time']), max(df['Time']), freq='d'))
+    date_range.columns = ['Time']
+    date_range['Time'] = date_range['Time'].dt.date
+
+    df_pivot = df.pivot(index='Time', columns='Nick_Class',
+                        values='Rating')
+    df_graph = date_range.merge(df_pivot, on='Time', how='left')
+    df_graph.fillna(method='ffill')
+    ax = df_graph.set_index('Time').fillna(method='ffill').plot(
+        figsize=(14, 9), rot=90, xticks=df_graph['Time'])
+    ax.legend(loc='center left', bbox_to_anchor=(1.0, 0.5))
+    plt.title(f'Skill Rating')
+    plt.grid(axis='y')
+    plt.savefig('teamsr.png', bbox_inches='tight')
+    await ctx.send(file=discord.File('teamsr.png'))
 
 
 @ bot.event
